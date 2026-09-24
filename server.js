@@ -258,18 +258,39 @@ function injectHelper(html) {
   addEventListener("hashchange", tell);
   tell();
 
-  // A phone shows one page at a time, so keep "open in a new tab" links
-  // and pop-ups for this site inside the phone.
-  function ours(url) {
-    try { return new URL(url, location.href).origin === location.origin; } catch (e) { return false; }
+  // Some links to the store are built while the page runs (often by apps),
+  // so the helper never saw them to swap. Swap them at the moment they're
+  // tapped. A phone shows one page at a time, so "open in a new tab" links
+  // and pop-ups for the store stay inside the phone too.
+  var DOORS = ${jsString(frontDoors(new URL(target).host))};
+  function viaHelper(url) {
+    try {
+      var u = new URL(url, location.href);
+      if (u.origin === location.origin) return u.href;
+      if (/^https?:$/.test(u.protocol) && DOORS.indexOf(u.host.toLowerCase()) !== -1) {
+        return location.origin + u.pathname + u.search + u.hash;
+      }
+    } catch (e) {}
+    return null;
   }
   document.addEventListener("click", function (e) {
-    var a = e.target.closest && e.target.closest("a[target]");
-    if (a && a.target !== "_self" && ours(a.href)) a.target = "_self";
+    var a = e.target.closest && e.target.closest("a[href]");
+    var url = a && viaHelper(a.href);
+    if (!url) return;
+    if (a.href !== url) a.href = url;
+    if (a.target && a.target !== "_self") a.target = "_self";
+  }, true);
+  document.addEventListener("submit", function (e) {
+    var f = e.target;
+    var url = viaHelper(f.action || location.href);
+    if (!url) return;
+    if (f.action !== url) f.action = url;
+    if (f.target && f.target !== "_self") f.target = "_self";
   }, true);
   var open = window.open;
   window.open = function (url) {
-    if (url && ours(url)) { location.href = new URL(url, location.href).href; return window; }
+    var local = url && viaHelper(url);
+    if (local) { location.href = local; return window; }
     return open.apply(window, arguments);
   };
 })();
