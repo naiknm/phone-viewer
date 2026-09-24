@@ -1,0 +1,12 @@
+{
+  "name": "phone-viewer",
+  "version": "1.0.0",
+  "description": "See how any website looks on popular phone screens.",
+  "private": true,
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

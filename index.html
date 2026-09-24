@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Phone Viewer</title>
+  <meta name="description" content="See how any website looks on popular phone screens.">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="toolbar">
+    <div class="brand">📱 Phone Viewer</div>
+
+    <form id="url-form" class="url-form">
+      <input id="url-input" type="text" inputmode="url" autocomplete="url" spellcheck="false"
+             placeholder="Type a website, e.g. mystore.myshopify.com" aria-label="Website address">
+      <button type="submit" class="primary">Show it</button>
+    </form>
+
+    <div class="controls">
+      <label class="sr-only" for="device-select">Phone</label>
+      <select id="device-select" aria-label="Phone"></select>
+
+      <div id="custom-size" class="custom-size" hidden>
+        <input id="custom-width" type="number" min="200" max="1600" value="400" aria-label="Width">
+        <span>×</span>
+        <input id="custom-height" type="number" min="300" max="2000" value="860" aria-label="Height">
+      </div>
+
+      <button id="rotate-btn" type="button" title="Turn the phone sideways">🔄 Rotate</button>
+      <button id="reload-btn" type="button" title="Load the page again">↻ Reload</button>
+    </div>
+  </header>
+
+  <main id="stage" class="stage">
+    <div id="phone-holder" class="phone-holder">
+      <div id="phone" class="phone">
+        <div class="screen" id="screen">
+          <div class="status-bar" id="status-bar">
+            <span class="clock">9:41</span>
+            <span class="icons">▂▄▆ 🔋</span>
+          </div>
+          <div class="cutout" id="cutout"></div>
+          <iframe id="site-frame" title="Website preview"
+                  sandbox="allow-scripts allow-same-origin allow-forms allow-popups"></iframe>
+          <div class="empty" id="empty-msg"><p>Type a website above and press <b>Show it</b> 👆</p></div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <footer class="info">
+    <span id="device-info"></span>
+    <span id="mode-badge" class="badge"></span>
+  </footer>
+
+  <script src="devices.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
