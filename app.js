@@ -132,7 +132,7 @@
   function frameSrc(url) {
     if (!helperOn) return url;
     const ua = currentDevice().os === "ios" ? "ios" : "android";
-    return `${helperOrigin}/p?ua=${ua}&u=${encodeURIComponent(url)}`;
+    return `${helperOrigin}/__pv/open?ua=${ua}&u=${encodeURIComponent(url)}`;
   }
 
   function show(url) {
@@ -161,7 +161,7 @@
   async function checkHelper() {
     if (helperOrigin) {
       try {
-        const res = await fetch(`${helperOrigin}/ping`, { signal: AbortSignal.timeout(1500) });
+        const res = await fetch(`${helperOrigin}/__pv/ping`, { signal: AbortSignal.timeout(1500) });
         helperOn = res.ok;
       } catch { helperOn = false; }
     }

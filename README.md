@@ -14,7 +14,8 @@ your own screen size.
 
 **Why the difference?** Many websites (Shopify stores included) carry a rule
 that says *"don't show me inside someone else's page."* The computer version
-runs a small helper that removes that rule, only on your own computer.
+runs a small helper that stands in for the website: every tap goes through
+it, and it removes that rule, only on your own computer.
 
 ## 🖥️ Run it on your computer
 
@@ -89,9 +90,12 @@ latest one out before September 2026. To add or change a phone, edit
 - The top of the phone (clock, camera) takes some space, just like a real
   phone. A real browser's address bar takes a little more, so the real
   visible area is slightly shorter.
-- In Full mode you can click around the site, but **logging in and the
-  shopping cart may not work**. The site sees the helper, not your browser.
-  It's for looking, not for buying.
+- In Full mode you can click around, add things to the cart, and the cart
+  remembers them, because every tap goes through the helper. **Paying at
+  checkout may not work**, since checkout pages have extra security. Use
+  your real phone for that.
+- The helper shows **one website at a time**. Opening a new site in the
+  viewer switches it over.
 - In Full mode the site is told it's being opened by an iPhone or an
   Android phone (to match the phone you picked), so it sends its phone
   version.
