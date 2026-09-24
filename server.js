@@ -78,6 +78,9 @@ const viewer = http.createServer((req, res) => {
 // shows one site at a time: opening a new one replaces it.
 let target = null;
 let ua = "ios";
+// Other names the same site goes by. Shopify stores also answer at a
+// hidden "xxx.myshopify.com" address, which apps often link to.
+let aliases = new Set();
 
 const helper = http.createServer(async (req, res) => {
   const reqUrl = new URL(req.url, `http://${req.headers.host || `localhost:${HELPER_PORT}`}`);
@@ -96,6 +99,7 @@ const helper = http.createServer(async (req, res) => {
       return send(res, 400, "That doesn't look like a website address.");
     }
     target = start.origin;
+    aliases = new Set();
     ua = reqUrl.searchParams.get("ua") === "android" ? "android" : "ios";
     res.writeHead(302, { Location: start.pathname + start.search + start.hash, "Cache-Control": "no-store" });
     return res.end();
@@ -149,7 +153,8 @@ async function forward(req, res, reqUrl, self) {
     if (next.origin !== target && sameSite(next.host, new URL(target).host)) {
       target = next.origin; // e.g. youtube.com -> m.youtube.com
     }
-    out["location"] = next.origin === target ? self + next.pathname + next.search + next.hash : next.href;
+    const ours = next.origin === target || aliases.has(next.host.toLowerCase());
+    out["location"] = ours ? self + next.pathname + next.search + next.hash : next.href;
   }
 
   const type = upstream.headers.get("content-type") || "";
@@ -160,7 +165,9 @@ async function forward(req, res, reqUrl, self) {
     return res.end(body);
   }
 
-  let text = rewriteLinks(await upstream.text(), self);
+  let text = await upstream.text();
+  if (type.includes("text/html")) learnAliases(text);
+  text = rewriteLinks(text, self);
   if (type.includes("text/html")) {
     text = text.replace(/\sintegrity=("[^"]*"|'[^']*')/gi, ""); // we changed the files
     text = injectHelper(text);
@@ -208,11 +215,18 @@ function sameSite(a, b) {
 // The usual front doors of a website. Links to any of them are sent through
 // the helper. Other doors (like "cdn." or "music.") are left alone, since
 // they hold different things.
+// Shopify pages say which myshopify.com address the store has, e.g.
+// Shopify.shop = "1d7sbn-fm.myshopify.com";
+function learnAliases(html) {
+  const m = html.match(/Shopify\.shop\s*=\s*["']([\w-]+\.myshopify\.com)["']/i);
+  if (m) aliases.add(m[1].toLowerCase());
+}
+
 function frontDoors(host) {
   const [name, port] = host.toLowerCase().split(":");
   const site = siteOf(name);
   const doors = new Set([name, site, `www.${site}`, `m.${site}`, `mobile.${site}`]);
-  return [...doors].map((d) => (port ? `${d}:${port}` : d));
+  return [...doors].map((d) => (port ? `${d}:${port}` : d)).concat([...aliases]);
 }
 
 function toReal(url, self) {
@@ -267,7 +281,9 @@ function injectHelper(html) {
     try {
       var u = new URL(url, location.href);
       if (u.origin === location.origin) return u.href;
-      if (/^https?:$/.test(u.protocol) && DOORS.indexOf(u.host.toLowerCase()) !== -1) {
+      var shop = window.Shopify && window.Shopify.shop;
+      var host = u.host.toLowerCase();
+      if (/^https?:$/.test(u.protocol) && (DOORS.indexOf(host) !== -1 || host === shop)) {
         return location.origin + u.pathname + u.search + u.hash;
       }
     } catch (e) {}
