@@ -146,8 +146,8 @@ async function forward(req, res, reqUrl, self) {
   const location = upstream.headers.get("location");
   if (location) {
     const next = new URL(location, upstreamUrl);
-    if (next.origin !== target && sameStore(next.host, new URL(target).host)) {
-      target = next.origin; // e.g. mystore.com -> www.mystore.com
+    if (next.origin !== target && sameSite(next.host, new URL(target).host)) {
+      target = next.origin; // e.g. youtube.com -> m.youtube.com
     }
     out["location"] = next.origin === target ? self + next.pathname + next.search + next.hash : next.href;
   }
@@ -174,7 +174,7 @@ async function forward(req, res, reqUrl, self) {
 // cart" come back through the helper instead of leaving the phone.
 function rewriteLinks(text, self) {
   const selfHost = new URL(self).host;
-  for (const host of storeHosts(new URL(target).host)) {
+  for (const host of frontDoors(new URL(target).host)) {
     const h = host.replace(/[.]/g, "\\.");
     const end = "(?![\\w.-])";
     text = text
@@ -186,13 +186,33 @@ function rewriteLinks(text, self) {
   return text;
 }
 
-// "mystore.com" and "www.mystore.com" are the same store.
-function storeHosts(host) {
-  const bare = host.replace(/^www\./, "");
-  return [bare, "www." + bare];
+// Endings where the website's name is the part before them, e.g.
+// "shop.co.uk" not "co.uk". Covers the common ones; others fall back to the
+// last two parts.
+const TWO_PART_ENDINGS = /\.(co|com|org|net|gov|edu|ac)\.[a-z]{2}$/i;
+
+// The website a host belongs to: "m.youtube.com" -> "youtube.com".
+function siteOf(host) {
+  const [name, port] = host.toLowerCase().split(":");
+  if (/^[\d.]+$/.test(name) || !name.includes(".")) return host.toLowerCase(); // IP or "localhost"
+  const keep = TWO_PART_ENDINGS.test(name) ? 3 : 2;
+  const site = name.split(".").slice(-keep).join(".");
+  return port ? `${site}:${port}` : site;
 }
-function sameStore(a, b) {
-  return a.replace(/^www\./, "") === b.replace(/^www\./, "");
+
+// "youtube.com", "www.youtube.com" and "m.youtube.com" are the same website.
+function sameSite(a, b) {
+  return siteOf(a) === siteOf(b);
+}
+
+// The usual front doors of a website. Links to any of them are sent through
+// the helper. Other doors (like "cdn." or "music.") are left alone, since
+// they hold different things.
+function frontDoors(host) {
+  const [name, port] = host.toLowerCase().split(":");
+  const site = siteOf(name);
+  const doors = new Set([name, site, `www.${site}`, `m.${site}`, `mobile.${site}`]);
+  return [...doors].map((d) => (port ? `${d}:${port}` : d));
 }
 
 function toReal(url, self) {
