@@ -4,10 +4,12 @@
   const BEZEL = 12;
 
   // The local helper (server.js) runs on this port. It is only reachable
-  // when the viewer itself is opened from this computer.
+  // when the viewer itself is opened from this computer. Each website in
+  // the phone gets its own address ending in PARENT.
   const HELPER_PORT = 8081;
-  const isLocal = ["localhost", "127.0.0.1"].includes(location.hostname);
-  const helperOrigin = isLocal ? `http://${location.hostname}:${HELPER_PORT}` : null;
+  const PARENT = "phoneviewer.localhost";
+  const isLocal = ["localhost", "127.0.0.1", PARENT].includes(location.hostname);
+  const helperOrigin = isLocal ? `http://${PARENT}:${HELPER_PORT}` : null;
   let helperOn = false;
 
   const $ = (id) => document.getElementById(id);
@@ -150,11 +152,18 @@
   // Pages opened through the helper tell us their real address when you
   // click around, so the address box stays up to date.
   window.addEventListener("message", (e) => {
-    if (e.origin !== helperOrigin || !e.data || e.data.type !== "phone-viewer-url") return;
+    if (!fromHelper(e.origin) || !e.data || e.data.type !== "phone-viewer-url") return;
     currentUrl = e.data.url;
     urlInput.value = e.data.url;
     save("url", e.data.url);
   });
+
+  function fromHelper(origin) {
+    try {
+      const u = new URL(origin);
+      return isLocal && u.port === String(HELPER_PORT) && u.hostname.endsWith("." + PARENT);
+    } catch { return false; }
+  }
 
   // ---------- Local helper check ----------
 

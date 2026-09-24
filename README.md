@@ -14,8 +14,8 @@ your own screen size.
 
 **Why the difference?** Many websites (Shopify stores included) carry a rule
 that says *"don't show me inside someone else's page."* The computer version
-runs a small helper that stands in for the website: every tap goes through
-it, and it removes that rule, only on your own computer.
+runs a small helper that stands in for every website in the phone: every
+tap goes through it, and it removes that rule, only on your own computer.
 
 ## 🖥️ Run it on your computer
 
@@ -32,7 +32,8 @@ type `node --version`. If you see a number like `v22.1.0`, you're ready.
    npm start
    ```
 
-4. Your browser opens **http://localhost:8080** by itself. 🎉
+4. Your browser opens **http://phoneviewer.localhost:8080** by itself. 🎉
+   (Typing `localhost:8080` works too; it switches to that address.)
    Leave the PowerShell window open while you use it. Press **Ctrl + C** in
    it to stop.
 
@@ -55,7 +56,7 @@ blocking this. Use the computer version for that site.
 ## Handy tricks
 
 - **Share a ready-made view:** add `?url=` to the address, e.g.
-  `http://localhost:8080/?url=mystore.myshopify.com`
+  `http://phoneviewer.localhost:8080/?url=mystore.myshopify.com`
 - The page remembers the last website and phone you used.
 - **★** in the list marks phones from the global top 10 best-sellers.
 
@@ -94,8 +95,13 @@ latest one out before September 2026. To add or change a phone, edit
   remembers them, because every tap goes through the helper. **Paying at
   checkout may not work**, since checkout pages have extra security. Use
   your real phone for that.
-- The helper shows **one website at a time**. Opening a new site in the
-  viewer switches it over.
+- **Everything stays inside the phone.** Links to any website, "open in
+  new tab" links, pop-ups, forms, scroll-wheel and Ctrl/Shift clicks all
+  open inside the phone. The phone can't open new tabs at all. (Right-click
+  → "Open link in new tab" still works, since that's your own choice.)
+- Each website gets its own address on your computer, like
+  `nightsealmask.com.phoneviewer.localhost:8081`. That's how the helper
+  carries many websites at once without mixing them up.
 - In Full mode the site is told it's being opened by an iPhone or an
   Android phone (to match the phone you picked), so it sends its phone
   version.

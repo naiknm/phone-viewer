@@ -3,21 +3,29 @@
 // Start it with:  npm start   (or: node server.js)
 //
 // It does two jobs, both only on this computer:
-//   1. Serves the viewer page at http://localhost:8080
-//   2. Runs a helper on http://localhost:8081 that stands in for the website
-//      you're viewing. Every request (pages, "add to cart", cookies) goes
-//      through it to the real site, and on the way back it removes the
-//      "don't show me inside another page" rules (X-Frame-Options /
-//      Content-Security-Policy) that sites like Shopify stores send.
+//   1. Serves the viewer page at http://phoneviewer.localhost:8080
+//   2. Runs a helper that stands in for every website shown in the phone.
+//      Each real site gets its own address on this computer, for example
+//        https://nightsealmask.com  ->  http://nightsealmask.com.phoneviewer.localhost:8081
+//      (anything ending in ".localhost" always means "this computer").
+//      Every request (pages, "add to cart", cookies) goes through the helper
+//      to the real site, and on the way back it removes the "don't show me
+//      inside another page" rules that sites like Shopify stores send, and
+//      makes sure links to any website open inside the phone.
 
 const http = require("http");
 const fs = require("fs");
 const path = require("path");
 const { exec } = require("child_process");
 
-const HOST = "127.0.0.1";
 const VIEWER_PORT = Number(process.env.VIEWER_PORT) || 8080;
 const HELPER_PORT = 8081; // app.js expects this port
+
+// Both the viewer and the sites live under this name so the browser treats
+// them as one "site" and lets the shopping cart's cookies work.
+const PARENT = "phoneviewer.localhost";
+const VIEWER_ORIGIN = `http://${PARENT}:${VIEWER_PORT}`;
+
 const ROOT = __dirname;
 
 const USER_AGENTS = {
@@ -58,9 +66,54 @@ const TYPES = {
   ".ico": "image/x-icon",
 };
 
+// ---------- Real address <-> helper address ----------
+
+// "https://nightsealmask.com/x" -> "http://nightsealmask.com.phoneviewer.localhost:8081/x"
+// Sites on plain http or an unusual port get an extra tag, e.g. "pv-http-9000".
+function toHelper(realUrl) {
+  const u = new URL(realUrl);
+  const scheme = u.protocol.slice(0, -1);
+  let host = u.hostname;
+  if (scheme !== "https" || u.port) host += `.pv-${scheme}${u.port ? "-" + u.port : ""}`;
+  return `http://${host}.${PARENT}:${HELPER_PORT}${u.pathname}${u.search}${u.hash}`;
+}
+
+// The real site behind a helper host, e.g. "https://nightsealmask.com".
+// Returns null for anything that isn't one of ours.
+function realOrigin(helperHost) {
+  const name = helperHost.toLowerCase().split(":")[0];
+  if (!name.endsWith("." + PARENT)) return null;
+  const labels = name.slice(0, -(PARENT.length + 1)).split(".");
+  let scheme = "https";
+  let port = "";
+  const tag = labels[labels.length - 1].match(/^pv-(https?)(?:-(\d+))?$/);
+  if (tag) {
+    labels.pop();
+    scheme = tag[1];
+    port = tag[2] ? ":" + tag[2] : "";
+  }
+  if (!labels.length || labels.some((l) => !l)) return null;
+  return `${scheme}://${labels.join(".")}${port}`;
+}
+
+function toReal(url) {
+  try {
+    const u = new URL(url);
+    const real = realOrigin(u.host);
+    return real ? real + u.pathname + u.search + u.hash : url;
+  } catch {
+    return url;
+  }
+}
+
 // ---------- 1. The viewer page ----------
 
-const viewer = http.createServer((req, res) => {
+function serveViewer(req, res) {
+  // Always use the phoneviewer.localhost name (see PARENT above).
+  if ((req.headers.host || "").split(":")[0] !== PARENT) {
+    res.writeHead(302, { Location: VIEWER_ORIGIN + req.url });
+    return res.end();
+  }
   const urlPath = decodeURIComponent(new URL(req.url, "http://x").pathname);
   const file = path.normalize(path.join(ROOT, urlPath === "/" ? "index.html" : urlPath));
   const type = TYPES[path.extname(file)];
@@ -70,62 +123,57 @@ const viewer = http.createServer((req, res) => {
     res.writeHead(200, { "Content-Type": type, "Cache-Control": "no-store" });
     res.end(data);
   });
-});
+}
 
 // ---------- 2. The helper ----------
 
-// The site being viewed right now, e.g. "https://mystore.com". The helper
-// shows one site at a time: opening a new one replaces it.
-let target = null;
 let ua = "ios";
-// Other names the same site goes by. Shopify stores also answer at a
-// hidden "xxx.myshopify.com" address, which apps often link to.
-let aliases = new Set();
 
-const helper = http.createServer(async (req, res) => {
-  const reqUrl = new URL(req.url, `http://${req.headers.host || `localhost:${HELPER_PORT}`}`);
-  const self = reqUrl.origin; // how the browser reaches this helper
+async function serveHelper(req, res) {
+  const host = req.headers.host || "";
+  const reqUrl = new URL(req.url, `http://${host}`);
+
+  // Only the viewer and the pages inside the phone may use the helper, not
+  // other websites you have open.
+  if (req.headers["sec-fetch-site"] === "cross-site") return send(res, 403, "Not allowed");
 
   if (reqUrl.pathname === "/__pv/ping") {
     res.writeHead(200, { "Access-Control-Allow-Origin": "*", "Content-Type": "text/plain" });
     return res.end("ok");
   }
 
-  // The viewer sends /__pv/open?u=<site>&ua=ios|android to switch sites.
+  // The viewer sends /__pv/open?u=<site>&ua=ios|android to show a site.
   if (reqUrl.pathname === "/__pv/open") {
     let start;
     try { start = new URL(reqUrl.searchParams.get("u") || ""); } catch { start = null; }
     if (!start || !/^https?:$/.test(start.protocol)) {
       return send(res, 400, "That doesn't look like a website address.");
     }
-    target = start.origin;
-    aliases = new Set();
     ua = reqUrl.searchParams.get("ua") === "android" ? "android" : "ios";
-    res.writeHead(302, { Location: start.pathname + start.search + start.hash, "Cache-Control": "no-store" });
+    res.writeHead(302, { Location: toHelper(start.href), "Cache-Control": "no-store" });
     return res.end();
   }
 
-  if (!target) {
-    return send(res, 200, "<p style='font:16px system-ui;padding:24px'>Open a website from the Phone Viewer page first.</p>");
-  }
+  const real = realOrigin(host);
+  if (!real) return send(res, 404, "Open a website from the Phone Viewer page.");
 
   try {
-    await forward(req, res, reqUrl, self);
+    await forward(req, res, reqUrl, real, `http://${host}`);
   } catch (err) {
-    send(res, 502, errorPage(target + reqUrl.pathname, err.cause?.code || err.message));
+    send(res, 502, errorPage(real + reqUrl.pathname, err.cause?.code || err.message));
   }
-});
+}
 
-async function forward(req, res, reqUrl, self) {
-  const upstreamUrl = target + reqUrl.pathname + reqUrl.search;
+async function forward(req, res, reqUrl, real, self) {
+  const upstreamUrl = real + reqUrl.pathname + reqUrl.search;
 
   const headers = {};
   for (const [name, value] of Object.entries(req.headers)) {
     if (!SKIP_REQUEST_HEADERS.has(name) && !name.startsWith("sec-")) headers[name] = value;
   }
   headers["user-agent"] = USER_AGENTS[ua];
-  if (req.headers.origin) headers["origin"] = target;
-  if (req.headers.referer) headers["referer"] = toReal(req.headers.referer, self);
+  if (req.headers.origin) headers["origin"] = new URL(toReal(req.headers.origin)).origin;
+  if (req.headers.referer) headers["referer"] = toReal(req.headers.referer);
 
   const hasBody = !["GET", "HEAD"].includes(req.method);
   const upstream = await fetch(upstreamUrl, {
@@ -141,20 +189,16 @@ async function forward(req, res, reqUrl, self) {
   });
   out["cache-control"] = "no-store";
 
-  // Cookies (like the shopping cart) are saved for this helper instead of
-  // the real site, so they come back with the next request.
+  // Cookies (like the shopping cart) are saved for the helper address
+  // instead of the real site, so they come back with the next request.
   const cookies = upstream.headers.getSetCookie().map(localCookie);
   if (cookies.length) out["set-cookie"] = cookies;
 
-  // Redirects: keep them going through the helper.
+  // Redirects to any website stay inside the phone.
   const location = upstream.headers.get("location");
   if (location) {
     const next = new URL(location, upstreamUrl);
-    if (next.origin !== target && sameSite(next.host, new URL(target).host)) {
-      target = next.origin; // e.g. youtube.com -> m.youtube.com
-    }
-    const ours = next.origin === target || aliases.has(next.host.toLowerCase());
-    out["location"] = ours ? self + next.pathname + next.search + next.hash : next.href;
+    out["location"] = /^https?:$/.test(next.protocol) ? toHelper(next.href) : next.href;
   }
 
   const type = upstream.headers.get("content-type") || "";
@@ -166,22 +210,22 @@ async function forward(req, res, reqUrl, self) {
   }
 
   let text = await upstream.text();
-  if (type.includes("text/html")) learnAliases(text);
-  text = rewriteLinks(text, self);
+  const doors = frontDoors(new URL(real).host, text);
+  text = rewriteLinks(text, doors, self);
   if (type.includes("text/html")) {
     text = text.replace(/\sintegrity=("[^"]*"|'[^']*')/gi, ""); // we changed the files
-    text = injectHelper(text);
+    text = injectGuard(text, real, doors);
     out["content-type"] = "text/html; charset=utf-8";
   }
   res.writeHead(upstream.status, out);
   res.end(text);
 }
 
-// Swap the real site's address for the helper's, so clicks and "add to
-// cart" come back through the helper instead of leaving the phone.
-function rewriteLinks(text, self) {
+// Swap the site's own address for the helper's in the page, so "add to
+// cart" and similar requests come back through the helper.
+function rewriteLinks(text, doors, self) {
   const selfHost = new URL(self).host;
-  for (const host of frontDoors(new URL(target).host)) {
+  for (const host of doors) {
     const h = host.replace(/[.]/g, "\\.");
     const end = "(?![\\w.-])";
     text = text
@@ -207,34 +251,21 @@ function siteOf(host) {
   return port ? `${site}:${port}` : site;
 }
 
-// "youtube.com", "www.youtube.com" and "m.youtube.com" are the same website.
-function sameSite(a, b) {
-  return siteOf(a) === siteOf(b);
-}
-
-// The usual front doors of a website. Links to any of them are sent through
-// the helper. Other doors (like "cdn." or "music.") are left alone, since
-// they hold different things.
-// Shopify pages say which myshopify.com address the store has, e.g.
-// Shopify.shop = "1d7sbn-fm.myshopify.com";
-function learnAliases(html) {
-  const m = html.match(/Shopify\.shop\s*=\s*["']([\w-]+\.myshopify\.com)["']/i);
-  if (m) aliases.add(m[1].toLowerCase());
-}
-
-function frontDoors(host) {
+// The other names this same site goes by: "www.", "m.", the bare name,
+// and for Shopify stores the hidden "xxx.myshopify.com" address the page
+// mentions (apps often link to it).
+function frontDoors(host, page) {
   const [name, port] = host.toLowerCase().split(":");
   const site = siteOf(name);
-  const doors = new Set([name, site, `www.${site}`, `m.${site}`, `mobile.${site}`]);
-  return [...doors].map((d) => (port ? `${d}:${port}` : d)).concat([...aliases]);
+  const doors = [name, site, `www.${site}`, `m.${site}`, `mobile.${site}`]
+    .map((d) => (port ? `${d}:${port}` : d));
+  const shop = page.match(/Shopify\.shop\s*=\s*["']([\w-]+\.myshopify\.com)["']/i);
+  if (shop) doors.push(shop[1].toLowerCase());
+  return [...new Set(doors)];
 }
 
-function toReal(url, self) {
-  return url.startsWith(self) ? target + url.slice(self.length) : url;
-}
-
-// Make a cookie from the real site stick to the helper (plain http, no
-// domain). Without this the cart would forget everything.
+// Make a cookie from the real site stick to the helper address (plain
+// http, no domain). Without this the cart would forget everything.
 function localCookie(cookie) {
   return cookie
     .split(";")
@@ -253,12 +284,19 @@ function readBody(req) {
   });
 }
 
-// Tells the viewer which page is showing, so its address box stays right.
-function injectHelper(html) {
+// A small guard added to every page in the phone. It tells the viewer
+// which page is showing, and catches every link, form and pop-up the
+// moment it's used, so it opens inside the phone whatever website it
+// points to. (The phone's frame also forbids new tabs outright.)
+function injectGuard(html, real, doors) {
   const script = `
 <script>
 (function () {
-  var REAL = ${jsString(target)};
+  var REAL = ${jsString(real)};
+  var DOORS = ${jsString(doors)};
+  var PARENT = ${jsString(PARENT)};
+  var PORT = ${jsString(String(HELPER_PORT))};
+
   function tell() {
     try {
       parent.postMessage({ type: "phone-viewer-url", url: REAL + location.pathname + location.search + location.hash }, "*");
@@ -272,43 +310,67 @@ function injectHelper(html) {
   addEventListener("hashchange", tell);
   tell();
 
-  // Some links to the store are built while the page runs (often by apps),
-  // so the helper never saw them to swap. Swap them at the moment they're
-  // tapped. A phone shows one page at a time, so "open in a new tab" links
-  // and pop-ups for the store stay inside the phone too.
-  var DOORS = ${jsString(frontDoors(new URL(target).host))};
-  function viaHelper(url) {
+  // Any web address -> its address through the helper.
+  function inPhone(url) {
     try {
       var u = new URL(url, location.href);
-      if (u.origin === location.origin) return u.href;
-      var shop = window.Shopify && window.Shopify.shop;
+      if (!/^https?:$/.test(u.protocol)) return null;
       var host = u.host.toLowerCase();
-      if (/^https?:$/.test(u.protocol) && (DOORS.indexOf(host) !== -1 || host === shop)) {
+      var shop = window.Shopify && window.Shopify.shop;
+      if (u.origin === location.origin || DOORS.indexOf(host) !== -1 || host === shop) {
         return location.origin + u.pathname + u.search + u.hash;
       }
-    } catch (e) {}
-    return null;
+      if (u.hostname.slice(-(PARENT.length + 1)) === "." + PARENT) return u.href;
+      var name = u.hostname;
+      var scheme = u.protocol.slice(0, -1);
+      if (scheme !== "https" || u.port) name += ".pv-" + scheme + (u.port ? "-" + u.port : "");
+      return "http://" + name + "." + PARENT + ":" + PORT + u.pathname + u.search + u.hash;
+    } catch (e) {
+      return null;
+    }
   }
-  document.addEventListener("click", function (e) {
+
+  function onLinkClick(e) {
     var a = e.target.closest && e.target.closest("a[href]");
-    var url = a && viaHelper(a.href);
-    if (!url) return;
-    if (a.href !== url) a.href = url;
+    if (!a) return;
     if (a.target && a.target !== "_self") a.target = "_self";
-  }, true);
+    var url = inPhone(a.href);
+    if (url && a.href !== url) a.href = url;
+    // Scroll-wheel, Ctrl and Shift clicks mean "new tab/window": open the
+    // link in the phone instead.
+    if (e.button === 1 || e.ctrlKey || e.metaKey || e.shiftKey) {
+      e.preventDefault();
+      location.href = a.href;
+    }
+  }
+  document.addEventListener("click", onLinkClick, true);
+  document.addEventListener("auxclick", function (e) { if (e.button === 1) onLinkClick(e); }, true);
+
   document.addEventListener("submit", function (e) {
     var f = e.target;
-    var url = viaHelper(f.action || location.href);
-    if (!url) return;
-    if (f.action !== url) f.action = url;
     if (f.target && f.target !== "_self") f.target = "_self";
+    var url = inPhone(f.action || location.href);
+    if (url && f.action !== url) f.action = url;
   }, true);
-  var open = window.open;
+
   window.open = function (url) {
-    var local = url && viaHelper(url);
-    if (local) { location.href = local; return window; }
-    return open.apply(window, arguments);
+    var next = url ? inPhone(url) : null;
+    if (next) location.href = next;
+    return window;
   };
+
+  // Scripts that jump straight to another website (location.href = ...).
+  // Browsers with the Navigation API (Chrome, Edge) let us catch those too.
+  if (window.navigation) {
+    navigation.addEventListener("navigate", function (e) {
+      if (!e.cancelable || e.hashChange || e.downloadRequest || e.formData) return;
+      var next = inPhone(e.destination.url);
+      if (next && next !== e.destination.url) {
+        e.preventDefault();
+        location.href = next;
+      }
+    });
+  }
 })();
 </script>`;
   if (/<head[^>]*>/i.test(html)) return html.replace(/<head[^>]*>/i, (m) => m + script);
@@ -316,8 +378,8 @@ function injectHelper(html) {
 }
 
 // Safe to drop inside a <script> tag.
-function jsString(s) {
-  return JSON.stringify(s).replace(/</g, "\\u003c");
+function jsString(value) {
+  return JSON.stringify(value).replace(/</g, "\\u003c");
 }
 
 function escapeHtml(s) {
@@ -340,8 +402,11 @@ function send(res, status, body) {
 
 // ---------- Start both ----------
 
-function listen(server, port, name) {
+// Listen on this computer only: 127.0.0.1, plus ::1 where it exists, since
+// browsers may use either for "localhost" names.
+function listen(handler, port, name) {
   return new Promise((resolve) => {
+    const server = http.createServer(handler);
     server.once("error", (err) => {
       if (err.code === "EADDRINUSE") {
         console.error(`\n❌ Port ${port} is already in use, so the ${name} can't start.`);
@@ -351,17 +416,20 @@ function listen(server, port, name) {
       }
       process.exit(1);
     });
-    server.listen(port, HOST, resolve);
+    server.listen(port, "127.0.0.1", () => {
+      const v6 = http.createServer(handler);
+      v6.once("error", () => resolve()); // no IPv6 here, that's fine
+      v6.listen(port, "::1", resolve);
+    });
   });
 }
 
 (async () => {
-  await listen(helper, HELPER_PORT, "helper");
-  await listen(viewer, VIEWER_PORT, "viewer");
-  const url = `http://localhost:${VIEWER_PORT}`;
-  console.log(`\n📱 Phone Viewer is running at ${url}`);
+  await listen(serveHelper, HELPER_PORT, "helper");
+  await listen(serveViewer, VIEWER_PORT, "viewer");
+  console.log(`\n📱 Phone Viewer is running at ${VIEWER_ORIGIN}`);
   console.log("   Leave this window open while you use it. Press Ctrl+C to stop.\n");
-  if (!process.env.NO_OPEN) openBrowser(url);
+  if (!process.env.NO_OPEN) openBrowser(VIEWER_ORIGIN);
 })();
 
 function openBrowser(url) {
