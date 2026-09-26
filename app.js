@@ -54,7 +54,7 @@
       }
       const opt = document.createElement("option");
       opt.value = String(i);
-      opt.textContent = `${d.top10 ? "★ " : ""}${d.name}  (${d.width}×${d.height})`;
+      opt.textContent = `${d.name}  (${d.width}×${d.height})${d.top10 ? "  · Top 10" : ""}`;
       groups[d.brand].appendChild(opt);
     });
     const other = document.createElement("optgroup");
@@ -176,11 +176,11 @@
     }
     if (helperOn) {
       modeBadge.className = "badge full";
-      modeBadge.textContent = "● Full mode: local helper is on, so every website can be shown";
+      modeBadge.textContent = "Full mode: the local helper is on, so every website can be shown";
     } else {
       modeBadge.className = "badge simple";
       modeBadge.textContent =
-        "● Simple mode: some sites (like Shopify stores) block this. Blank screen? Start it from PowerShell with \"npm start\" instead.";
+        "Simple mode: some sites (like Shopify stores) block this. Blank screen? Start it from PowerShell with \"npm start\" instead.";
     }
   }
 

@@ -389,7 +389,7 @@ function escapeHtml(s) {
 function errorPage(url, reason) {
   return `<!doctype html><meta name="viewport" content="width=device-width">
 <body style="font:16px system-ui;padding:24px;color:#333">
-<h2>😕 Couldn't open that website</h2>
+<h2>Couldn't open that website</h2>
 <p><b>${escapeHtml(url)}</b></p>
 <p>Reason: ${escapeHtml(String(reason))}</p>
 <p>Check the address is spelled right and that this computer is online.</p></body>`;
@@ -409,7 +409,7 @@ function listen(handler, port, name) {
     const server = http.createServer(handler);
     server.once("error", (err) => {
       if (err.code === "EADDRINUSE") {
-        console.error(`\n❌ Port ${port} is already in use, so the ${name} can't start.`);
+        console.error(`\nPort ${port} is already in use, so the ${name} can't start.`);
         console.error("   Is Phone Viewer already running in another window? Close it and try again.\n");
       } else {
         console.error(err);
@@ -427,7 +427,7 @@ function listen(handler, port, name) {
 (async () => {
   await listen(serveHelper, HELPER_PORT, "helper");
   await listen(serveViewer, VIEWER_PORT, "viewer");
-  console.log(`\n📱 Phone Viewer is running at ${VIEWER_ORIGIN}`);
+  console.log(`\nPhone Viewer is running at ${VIEWER_ORIGIN}`);
   console.log("   Leave this window open while you use it. Press Ctrl+C to stop.\n");
   if (!process.env.NO_OPEN) openBrowser(VIEWER_ORIGIN);
 })();

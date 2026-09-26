@@ -1,4 +1,4 @@
-# 📱 Phone Viewer
+# Phone Viewer
 
 Type in any website, like your Shopify store, and see how it looks on a
 real phone screen. Pick a phone from the list, turn it sideways, or type in
@@ -6,18 +6,18 @@ your own screen size.
 
 ## Two ways to use it
 
-| | 🖥️ On your computer (PowerShell) | 🌐 On the internet (GitHub Pages) |
+| | On your computer (PowerShell) | On the internet (GitHub Pages) |
 |---|---|---|
 | Cost | Free | Free |
-| Shows **every** website, including Shopify | ✅ Yes | ❌ Only sites that allow it |
-| Others can open it | ❌ Only you | ✅ Anyone with the link |
+| Shows **every** website, including Shopify | Yes | Only sites that allow it |
+| Others can open it | Only you | Anyone with the link |
 
 **Why the difference?** Many websites (Shopify stores included) carry a rule
 that says *"don't show me inside someone else's page."* The computer version
 runs a small helper that stands in for every website in the phone: every
 tap goes through it, and it removes that rule, only on your own computer.
 
-## 🖥️ Run it on your computer
+## Run it on your computer
 
 You need **Node.js** (version 18 or newer). To check, open PowerShell and
 type `node --version`. If you see a number like `v22.1.0`, you're ready.
@@ -32,15 +32,14 @@ type `node --version`. If you see a number like `v22.1.0`, you're ready.
    npm start
    ```
 
-4. Your browser opens **http://phoneviewer.localhost:8080** by itself. 🎉
-   (Typing `localhost:8080` works too; it switches to that address.)
+4. Your browser opens **http://phoneviewer.localhost:8080** by itself.    (Typing `localhost:8080` works too; it switches to that address.)
    Leave the PowerShell window open while you use it. Press **Ctrl + C** in
    it to stop.
 
 The bottom right corner of the page shows a green **Full mode** message when
 the helper is on.
 
-## 🌐 Put it on the internet (GitHub Pages)
+## Put it on the internet (GitHub Pages)
 
 Do this once, after the code is on the `main` branch:
 
@@ -58,7 +57,7 @@ blocking this. Use the computer version for that site.
 - **Share a ready-made view:** add `?url=` to the address, e.g.
   `http://phoneviewer.localhost:8080/?url=mystore.myshopify.com`
 - The page remembers the last website and phone you used.
-- **★** in the list marks phones from the global top 10 best-sellers.
+- **Top 10** in the list marks phones from the global top 10 best-sellers.
 
 ## The phones
 
@@ -68,17 +67,17 @@ Sizes are **CSS viewport** sizes. That's the width and height a website
 
 | Phone | Size | Top 10 |
 |---|---|---|
-| iPhone 17 Pro Max | 440 × 956 | ★ |
-| iPhone 17 Pro | 402 × 874 | ★ |
-| iPhone 17 | 402 × 874 | ★ |
+| iPhone 17 Pro Max | 440 × 956 | Yes |
+| iPhone 17 Pro | 402 × 874 | Yes |
+| iPhone 17 | 402 × 874 | Yes |
 | iPhone Air | 420 × 912 | |
-| iPhone 17e | 390 × 844 | ★ |
+| iPhone 17e | 390 × 844 | Yes |
 | iPhone 16 Pro Max | 440 × 956 | |
-| iPhone 16 | 393 × 852 | ★ |
-| Galaxy S26 Ultra | 412 × 891 | ★ |
-| Galaxy S26 | 360 × 780 | ★ |
-| Galaxy A17 | 412 × 892 | ★ |
-| Galaxy A07 | 412 × 915 (estimated) | ★ |
+| iPhone 16 | 393 × 852 | Yes |
+| Galaxy S26 Ultra | 412 × 891 | Yes |
+| Galaxy S26 | 360 × 780 | Yes |
+| Galaxy A17 | 412 × 892 | Yes |
+| Galaxy A07 | 412 × 915 (estimated) | Yes |
 | Pixel 10 | 412 × 924 | |
 | Pixel 10 Pro XL | 432 × 960 | |
 
