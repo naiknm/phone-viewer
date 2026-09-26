@@ -123,18 +123,42 @@ button.primary:hover { background: var(--blue-50); }
 /* ---------- Phone area ---------- */
 
 .stage {
+  position: relative;
   flex: 1;
   min-height: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 20px 16px;
   overflow: hidden;
+  cursor: text;
   background: radial-gradient(circle at 50% 40%, var(--white), var(--blue-50) 55%, var(--blue-100));
 }
 
-/* phone-holder takes the phone's shrunk size so the layout stays tidy */
-.phone-holder { position: relative; flex: none; }
+/* phone-holder takes the phone's shrunk size and is what gets dragged */
+.phone-holder { position: absolute; z-index: 5; cursor: default; }
+
+.phone-handle {
+  position: absolute;
+  top: -24px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 16px;
+  border-radius: 8px;
+  color: var(--blue-700);
+  background: rgba(31, 90, 224, 0.14);
+  cursor: grab;
+  touch-action: none;
+}
+.phone-handle:hover { background: rgba(31, 90, 224, 0.26); }
+.phone-handle svg { width: 16px; height: 10px; fill: currentColor; }
+
+.phone { cursor: grab; touch-action: none; }
+.phone .screen { cursor: default; }
+
+/* While dragging, the website mustn't swallow the mouse. */
+.stage.dragging, .stage.dragging * { cursor: grabbing !important; user-select: none; }
+.stage.dragging iframe { pointer-events: none; }
 
 .phone {
   position: absolute;
@@ -204,6 +228,76 @@ button.primary:hover { background: var(--blue-50); }
 .phone.landscape .cutout.notch  { width: 32px; height: 160px; border-radius: 0 20px 20px 0; }
 .phone.landscape .cutout.hole   { left: 10px; }
 
+/* ---------- Notes ---------- */
+
+.notes-layer { position: absolute; inset: 0; }
+
+.notes-hint {
+  position: absolute;
+  left: 16px;
+  bottom: 8px;
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  pointer-events: none;
+}
+
+.note {
+  position: absolute;
+  display: flex;
+  align-items: flex-start;
+  gap: 2px;
+  max-width: 380px;
+  padding: 2px 4px 2px 0;
+  border-radius: 6px;
+  cursor: default;
+}
+.note:hover, .note:focus-within {
+  background: rgba(255, 255, 255, 0.75);
+  box-shadow: 0 0 0 1px var(--border);
+}
+
+.note-grip, .note-delete {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  opacity: 0;
+}
+.note:hover .note-grip, .note:hover .note-delete, .note:focus-within .note-delete { opacity: 1; }
+.note-grip { cursor: grab; touch-action: none; }
+.note-grip svg { width: 8px; height: 13px; fill: currentColor; }
+.note-delete svg { width: 12px; height: 12px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
+.note-grip:hover, .note-delete:hover { color: var(--blue-700); background: var(--blue-50); }
+
+.note-check { display: none; margin: 5px 4px 0 2px; accent-color: var(--blue-600); }
+.note.todo .note-check { display: block; }
+
+.note-body {
+  min-width: 2ch;
+  padding: 1px 2px;
+  outline: none;
+  color: var(--text);
+  font-size: 15px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  cursor: text;
+}
+.note-body:empty::before { content: attr(data-placeholder); color: var(--muted); opacity: 0.7; }
+.note-body ul, .note-body ol { margin: 0; padding-left: 22px; }
+
+.note.h1 .note-body { font-size: 28px; font-weight: 700; line-height: 1.25; color: var(--blue-900); }
+.note.h2 .note-body { font-size: 21px; font-weight: 650; line-height: 1.3; color: var(--blue-900); }
+.note.h3 .note-body { font-size: 17px; font-weight: 600; color: var(--blue-900); }
+.note.quote .note-body { border-left: 3px solid var(--blue-500); padding-left: 10px; color: var(--muted); }
+.note.todo.done .note-body { text-decoration: line-through; color: var(--muted); }
+
 /* ---------- Bottom bar ---------- */
 
 .info {
@@ -217,6 +311,17 @@ button.primary:hover { background: var(--blue-50); }
   color: var(--muted);
   font-size: 13px;
 }
+
+.info-right { display: inline-flex; align-items: center; gap: 16px; }
+
+.link-btn {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--blue-700);
+  font-size: 13px;
+}
+.link-btn:hover { background: none; text-decoration: underline; }
 
 .badge { display: inline-flex; align-items: center; gap: 6px; }
 .badge::before {

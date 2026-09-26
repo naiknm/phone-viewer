@@ -32,7 +32,8 @@ type `node --version`. If you see a number like `v22.1.0`, you're ready.
    npm start
    ```
 
-4. Your browser opens **http://phoneviewer.localhost:8080** by itself.    (Typing `localhost:8080` works too; it switches to that address.)
+4. Your browser opens **http://phoneviewer.localhost:8080** by itself.
+   (Typing `localhost:8080` works too; it switches to that address.)
    Leave the PowerShell window open while you use it. Press **Ctrl + C** in
    it to stop.
 
@@ -58,6 +59,34 @@ blocking this. Use the computer version for that site.
   `http://phoneviewer.localhost:8080/?url=mystore.myshopify.com`
 - The page remembers the last website and phone you used.
 - **Top 10** in the list marks phones from the global top 10 best-sellers.
+
+## Notes and moving the phone
+
+The area around the phone is a notes board, a bit like Notion.
+
+- **Move the phone:** drag the small bar above it (or its black edge).
+  Double-click the bar to put it back in the middle.
+- **Add a note:** click any empty spot and type.
+- **Move a note:** hover it and drag the dotted handle on its left.
+- **Delete a note:** hover it and click the cross, or empty it and press
+  Backspace. **Clear notes** at the bottom deletes them all.
+- **Shortcuts,** typed at the start of a note:
+
+  | Type | You get |
+  |---|---|
+  | `# ` | Big heading |
+  | `## ` | Medium heading |
+  | `### ` | Small heading |
+  | `- ` | Bullet list |
+  | `1. ` | Numbered list |
+  | `[] ` | To-do with a checkbox |
+  | `> ` | Quote |
+
+  Press **Enter** after a heading or to-do to start a new note right below.
+  **Ctrl + B** makes text bold, **Ctrl + I** italic.
+
+Notes and the phone's position are saved in your browser, so they're still
+there next time. They stay on this computer and in this browser only.
 
 ## The phones
 
@@ -113,4 +142,5 @@ latest one out before September 2026. To add or change a phone, edit
 | `style.css` | How it looks |
 | `app.js` | What the buttons do |
 | `devices.js` | The list of phones |
+| `notes.js` | The notes board |
 | `server.js` | The helper for the computer version |

@@ -45,7 +45,13 @@
   </header>
 
   <main id="stage" class="stage">
+    <div id="notes-layer" class="notes-layer"></div>
+    <p id="notes-hint" class="notes-hint">Click anywhere to add a note. Drag the bar above the phone to move it.</p>
+
     <div id="phone-holder" class="phone-holder">
+      <div id="phone-handle" class="phone-handle" title="Drag to move the phone. Double-click to center it.">
+        <svg viewBox="0 0 16 10" aria-hidden="true"><circle cx="3" cy="2.5" r="1.5"/><circle cx="8" cy="2.5" r="1.5"/><circle cx="13" cy="2.5" r="1.5"/><circle cx="3" cy="7.5" r="1.5"/><circle cx="8" cy="7.5" r="1.5"/><circle cx="13" cy="7.5" r="1.5"/></svg>
+      </div>
       <div id="phone" class="phone">
         <div class="screen" id="screen">
           <div class="status-bar" id="status-bar">
@@ -68,10 +74,14 @@
 
   <footer class="info">
     <span id="device-info"></span>
-    <span id="mode-badge" class="badge"></span>
+    <span class="info-right">
+      <button id="clear-notes" type="button" class="link-btn" hidden>Clear notes</button>
+      <span id="mode-badge" class="badge"></span>
+    </span>
   </footer>
 
   <script src="devices.js"></script>
+  <script src="notes.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

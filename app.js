@@ -33,6 +33,11 @@
   let landscape = false;
   let currentUrl = "";
 
+  // Where you dragged the phone (top-left corner inside the board), or null
+  // to keep it in the middle.
+  const HANDLE_SPACE = 30;
+  let phonePos = null;
+
   // ---------- Remembering choices (only in this browser) ----------
 
   function load(key) {
@@ -111,16 +116,50 @@
 
   // Shrink the phone so it always fits in the window.
   function fitToWindow(phoneW, phoneH) {
-    const style = getComputedStyle(stage);
-    const availW = stage.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
-    const availH = stage.clientHeight - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom);
+    const margin = 20;
+    const availW = stage.clientWidth - margin * 2;
+    const availH = stage.clientHeight - margin * 2 - HANDLE_SPACE;
     const scale = Math.min(1, availW / phoneW, availH / phoneH);
     phone.style.transform = `scale(${scale})`;
     holder.style.width = `${phoneW * scale}px`;
     holder.style.height = `${phoneH * scale}px`;
     const pct = Math.round(scale * 100);
     if (pct < 100) deviceInfo.textContent += ` · shown at ${pct}%`;
+    placePhone();
   }
+
+  // ---------- Moving the phone ----------
+
+  function placePhone() {
+    let x, y;
+    if (phonePos) {
+      ({ x, y } = window.pvClamp(holder, phonePos.x, phonePos.y, { minTop: HANDLE_SPACE }));
+    } else {
+      x = (stage.clientWidth - holder.offsetWidth) / 2;
+      y = HANDLE_SPACE + (stage.clientHeight - HANDLE_SPACE - holder.offsetHeight) / 2;
+    }
+    holder.style.left = `${Math.round(x)}px`;
+    holder.style.top = `${Math.round(y)}px`;
+  }
+
+  function startPhoneDrag(e) {
+    e.preventDefault();
+    window.pvDrag(e, holder, (x, y) => {
+      phonePos = { x, y };
+      save("phone-pos", JSON.stringify(phonePos));
+    }, { minTop: HANDLE_SPACE });
+  }
+
+  $("phone-handle").addEventListener("pointerdown", startPhoneDrag);
+  // The phone's black edge works as a handle too.
+  phone.addEventListener("pointerdown", (e) => { if (e.target === phone) startPhoneDrag(e); });
+  holder.addEventListener("pointerdown", () => window.pvFront(holder));
+
+  $("phone-handle").addEventListener("dblclick", () => {
+    phonePos = null;
+    save("phone-pos", "");
+    placePhone();
+  });
 
   // ---------- Loading a website ----------
 
@@ -219,6 +258,7 @@
 
   async function start() {
     fillDropdown();
+    try { phonePos = JSON.parse(load("phone-pos")) || null; } catch { phonePos = null; }
     const savedCustom = (load("custom") || "").split("x");
     if (savedCustom.length === 2) { customW.value = savedCustom[0]; customH.value = savedCustom[1]; }
     const savedDevice = load("device");
